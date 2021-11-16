@@ -1,7 +1,7 @@
 import cv2
 import mediapipe as mp
 import time
-
+import math
 
 class handDetector():
     def __init__(self, mode=False, maxHands=2, detectionCon=False, trackCon=0.5):
@@ -31,7 +31,6 @@ class handDetector():
         s_img = cv2.resize(s_img, dim, interpolation=cv2.INTER_AREA)
 
         x_offset = y_offset = upper_left[0]
-        print(img.shape, s_img.shape)
         img[y_offset:y_offset + s_img.shape[0], x_offset:x_offset + s_img.shape[1]] = s_img
 
         if self.results.multi_hand_landmarks:
@@ -49,7 +48,7 @@ class handDetector():
                 h, w, c = img.shape
                 cx, cy = int(lm.x * w), int(lm.y * h)
                 lmlist.append([id, cx, cy])
-                if draw:
+                if draw and id==8:
                     cv2.circle(img, (cx, cy), 3, (255, 0, 255), cv2.FILLED)
         return lmlist
 
@@ -65,7 +64,7 @@ def main():
     while True:
         success, img = cap.read()
         img = cv2.flip(img, 1)
-        img = detector.findHands(img)
+        img = detector.findHands(img, draw=False)
 
 
         lmlist = detector.findPosition(img)
