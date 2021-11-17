@@ -22,6 +22,7 @@ keyboard = cv2.resize(keyboard, (keyboard_width, keyboard_height), interpolation
 # flip the keyboard because all video frames are ultimately flipped again before being rendered
 keyboard = cv2.flip(keyboard, 1)
 
+
 def palm_open(landmarks):
     # param landmarks should be a results.multi_hand_landmarks WITH NO FURTHER INDEXING
 
@@ -34,7 +35,6 @@ def palm_open(landmarks):
     return middle_open
 
 def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
-    print('called')
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
 
@@ -77,7 +77,7 @@ def detect_hands(word_list=None, save_path=None):
 
     cap = cv2.VideoCapture(0)
     while cap.isOpened():
-        display_text = word_list[word_list_index]
+        display_text = word_list[word_list_index] if word_list else None
         success, image = cap.read()
         h, w, c = image.shape
 
@@ -112,7 +112,6 @@ def detect_hands(word_list=None, save_path=None):
             # draw trail
             for i in range(1, len(index_finger_tip_points)):
                 if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
-                    print(index_finger_tip_points[i-1], index_finger_tip_points[i], 'continue')
                     continue
 
                 # check palm open and terminate trail generation if so
@@ -122,14 +121,16 @@ def detect_hands(word_list=None, save_path=None):
                         save_trail(index_finger_tip_points, image.shape, display_text, save_path)
                         samples_captured+=1
                         if samples_captured == samples_per_word:
-                            samples_captured = 0
-                            word_list_index+=1
+                            word_list_index+=1 # display next word
+                            samples_captured = 0 # set count of next word to 0
 
+                    # visualise trail without saving coz no save path provided
                     else:
                         save_trail(index_finger_tip_points, image.shape)
+
                     # pause so that save_trail isn't called multiple times
                     time.sleep(1)
-                    # reset trail for next word
+                    # reset trail for next word if palm raised
                     index_finger_tip_points = []
                     break
 
@@ -139,8 +140,9 @@ def detect_hands(word_list=None, save_path=None):
         # Flip the image horizontally for a selfie-view display.
         image = cv2.flip(image, 1)
 
-        # display text if any
-        cv2.putText(image, display_text, org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
+        # display text if any - used to display words during data collection
+        if word_list:
+            cv2.putText(image, display_text, org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
 
         cv2.imshow('MediaPipe Hands', image)
         if cv2.waitKey(5) & 0xFF == 27:
