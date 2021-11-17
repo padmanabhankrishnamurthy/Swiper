@@ -1,7 +1,8 @@
 import cv2
 import mediapipe as mp
-from collections import deque
 import numpy as np
+import matplotlib.pyplot as plt
+import time
 
 # media pipe objects
 mp_hands = mp.solutions.hands
@@ -20,6 +21,22 @@ def palm_open(landmarks):
     middle_open = landmarks.landmark[12].y < landmarks.landmark[10].y and landmarks.landmark[11].y < landmarks.landmark[10].y
 
     return middle_open
+
+def save_trail(index_finger_tip_points, image_shape):
+    print('called')
+    h,w,c = image_shape
+    trail_image = np.zeros((h, w, c))
+
+    for i in range(1, len(index_finger_tip_points)):
+        if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
+            continue
+
+        # draw trail
+        cv2.line(trail_image, index_finger_tip_points[i - 1], index_finger_tip_points[i], (0, 0, 255), thickness=5)
+
+    trail_image = cv2.flip(trail_image, 1)
+    plt.imshow(trail_image)
+    plt.show()
 
 def detect_hands():
     index_finger_tip_points = []
@@ -45,12 +62,19 @@ def detect_hands():
             cv2.circle(image, index_finger_tip, 5, (255, 0, 255), cv2.FILLED)
             index_finger_tip_points.insert(0, index_finger_tip)
 
+
             for i in range(1, len(index_finger_tip_points)):
                 if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
                     continue
 
                 # check palm open and terminate trail generation if so
                 if palm_open(results.multi_hand_landmarks):
+                    # create trail on blank image and save
+                    save_trail(index_finger_tip_points, image.shape)
+
+                    # pause so that save_trail isn't called multiple times
+                    time.sleep(1)
+
                     index_finger_tip_points = []
                     break
 
@@ -64,4 +88,5 @@ def detect_hands():
 
     cap.release()
 
-detect_hands()
+if __name__ == '__main__':
+    detect_hands()
