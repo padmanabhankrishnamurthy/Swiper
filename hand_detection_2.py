@@ -55,7 +55,11 @@ def detect_hands():
         image.flags.writeable = True
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        if results.multi_hand_landmarks:
+        # don't capture trail if 2 hands are displayed - necessary for moving from end point of word to start point of next word
+        if results.multi_hand_landmarks and len(results.multi_hand_landmarks) > 1:
+            index_finger_tip_points = []
+
+        if results.multi_hand_landmarks and len(results.multi_hand_landmarks)==1:
 
             index_finger_tip = results.multi_hand_landmarks[0].landmark[8]
             index_finger_tip = (int(index_finger_tip.x*w), int(index_finger_tip.y*h))
@@ -65,6 +69,7 @@ def detect_hands():
 
             for i in range(1, len(index_finger_tip_points)):
                 if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
+                    print(index_finger_tip_points[i-1], index_finger_tip_points[i], 'continue')
                     continue
 
                 # check palm open and terminate trail generation if so
