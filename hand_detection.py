@@ -11,6 +11,16 @@ hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detectio
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
+# keyboard overlay
+keyboard = cv2.imread('keyboard.jpg')
+scale_percent = 30
+keyboard_width = int(keyboard.shape[1] * scale_percent / 100)
+keyboard_height = int(keyboard.shape[0] * scale_percent / 100)
+# resize keyboard
+keyboard = cv2.resize(keyboard, (keyboard_width, keyboard_height), interpolation=cv2.INTER_AREA)
+# flip the keyboard because all video frames are ultimately flipped again before being rendered
+keyboard = cv2.flip(keyboard, 1)
+
 def palm_open(landmarks):
     # param landmarks should be a results.multi_hand_landmarks WITH NO FURTHER INDEXING
 
@@ -55,6 +65,7 @@ def detect_hands():
         # To improve performance, optionally mark the image as not writeable to pass by reference.
         image.flags.writeable = False
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
         results = hand_detector.process(image)
 
         # Draw the hand annotations on the image.
@@ -65,6 +76,13 @@ def detect_hands():
         if results.multi_hand_landmarks and len(results.multi_hand_landmarks) > 1:
             index_finger_tip_points = []
 
+        # overlay keyboard on the center of the frame - bottom corners seem to be screwing up hand detection
+        # this needs to be done before trail generation, otherwise keyboard obscures finger and trail
+        top_left_x = int(h/2 - keyboard_height/2)
+        top_left_y = int(w/2 - keyboard_width/2)
+        image[top_left_x:top_left_x+keyboard_height, top_left_y:top_left_y+keyboard_width] = keyboard
+
+        # capture index finger trail
         if results.multi_hand_landmarks and len(results.multi_hand_landmarks)==1:
 
             index_finger_tip = results.multi_hand_landmarks[0].landmark[8]
@@ -82,10 +100,9 @@ def detect_hands():
                 if palm_open(results.multi_hand_landmarks):
                     # create trail on blank image and save
                     save_trail(index_finger_tip_points, image.shape)
-
                     # pause so that save_trail isn't called multiple times
                     time.sleep(1)
-
+                    # reset trail for next word
                     index_finger_tip_points = []
                     break
 
