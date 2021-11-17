@@ -6,7 +6,7 @@ import time
 
 # media pipe objects
 mp_hands = mp.solutions.hands
-hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detection_confidence=0.5, min_tracking_confidence=0.5)
+hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detection_confidence=0.5, min_tracking_confidence=0.3)
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -26,6 +26,12 @@ def save_trail(index_finger_tip_points, image_shape):
     print('called')
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
+
+    # index finger tip points also contains an erroneous stroke depicting palm opening - we need to cut out that stroke before saving
+    # we are slicing from the beginning and not from the end because while appending index finger points, we use insert(0, point) and not append
+    # i.e, most recent points are stored first, from lower indices
+    # the slice start index, 5, has been chosen arbitrarily
+    index_finger_tip_points = index_finger_tip_points[5:]
 
     for i in range(1, len(index_finger_tip_points)):
         if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
@@ -66,7 +72,7 @@ def detect_hands():
             cv2.circle(image, index_finger_tip, 5, (255, 0, 255), cv2.FILLED)
             index_finger_tip_points.insert(0, index_finger_tip)
 
-
+            # draw trail
             for i in range(1, len(index_finger_tip_points)):
                 if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
                     print(index_finger_tip_points[i-1], index_finger_tip_points[i], 'continue')
