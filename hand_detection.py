@@ -3,10 +3,11 @@ import mediapipe as mp
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import os
 
 # media pipe objects
 mp_hands = mp.solutions.hands
-hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detection_confidence=0.5, min_tracking_confidence=0.3)
+hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detection_confidence=0.3, min_tracking_confidence=0.3)
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -32,7 +33,7 @@ def palm_open(landmarks):
 
     return middle_open
 
-def save_trail(index_finger_tip_points, image_shape):
+def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
     print('called')
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
@@ -51,14 +52,32 @@ def save_trail(index_finger_tip_points, image_shape):
         cv2.line(trail_image, index_finger_tip_points[i - 1], index_finger_tip_points[i], (0, 0, 255), thickness=5)
 
     trail_image = cv2.flip(trail_image, 1)
+
     plt.imshow(trail_image)
     plt.show()
 
-def detect_hands():
+    # save image
+    if name:
+        print(name)
+        files = [file[:file.find('_')] for file in os.listdir(path)]
+        file_dict = {file:files.count(file) for file in files}
+        file_set = set(files)
+        if name not in file_set:
+            filename = name+'_1.jpg'
+        else:
+            filename = '{}_{}.jpg'.format(name, file_dict[name]+1)
+        cv2.imwrite(os.path.join(path, filename), trail_image)
+
+
+def detect_hands(word_list=None, save_path=None):
     index_finger_tip_points = []
+    word_list_index = 0
+    samples_captured = 0
+    samples_per_word = 5
 
     cap = cv2.VideoCapture(0)
     while cap.isOpened():
+        display_text = word_list[word_list_index]
         success, image = cap.read()
         h, w, c = image.shape
 
@@ -99,7 +118,15 @@ def detect_hands():
                 # check palm open and terminate trail generation if so
                 if palm_open(results.multi_hand_landmarks):
                     # create trail on blank image and save
-                    save_trail(index_finger_tip_points, image.shape)
+                    if save_path:
+                        save_trail(index_finger_tip_points, image.shape, display_text, save_path)
+                        samples_captured+=1
+                        if samples_captured == samples_per_word:
+                            samples_captured = 0
+                            word_list_index+=1
+
+                    else:
+                        save_trail(index_finger_tip_points, image.shape)
                     # pause so that save_trail isn't called multiple times
                     time.sleep(1)
                     # reset trail for next word
@@ -110,7 +137,12 @@ def detect_hands():
                 cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], (0, 0, 255), thickness=5)
 
         # Flip the image horizontally for a selfie-view display.
-        cv2.imshow('MediaPipe Hands', cv2.flip(image, 1))
+        image = cv2.flip(image, 1)
+
+        # display text if any
+        cv2.putText(image, display_text, org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
+
+        cv2.imshow('MediaPipe Hands', image)
         if cv2.waitKey(5) & 0xFF == 27:
             break
 
