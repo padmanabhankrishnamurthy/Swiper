@@ -15,8 +15,8 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 
 # keyboard overlay
-keyboard = cv2.imread('keyboard.jpg')
-scale_percent = 30
+keyboard = cv2.imread('keyboard.png')
+scale_percent = 70
 keyboard_width = int(keyboard.shape[1] * scale_percent / 100)
 keyboard_height = int(keyboard.shape[0] * scale_percent / 100)
 # resize keyboard
@@ -36,17 +36,13 @@ def palm_open(landmarks):
 
     return middle_open
 
-def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
+def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=None, path=None):
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
 
     # index finger tip points also contains an erroneous stroke depicting palm opening - we need to cut out that stroke before saving
     # the slice start index, 5, has been chosen arbitrarily
     index_finger_tip_points = index_finger_tip_points[:-5]
-
-    # initialise colours
-    start_colour = Color('blue')
-    colours = list(start_colour.range_to(Color('orange'), len(index_finger_tip_points)))
 
     for i in range(1, len(index_finger_tip_points)):
         if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
@@ -57,6 +53,7 @@ def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
         cv2.line(trail_image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
 
     trail_image = cv2.flip(trail_image, 1)
+    trail_image = trail_image[crop_shape[0][0]:crop_shape[0][1], crop_shape[1][0]:crop_shape[1][1]]
     plt.imshow(trail_image)
     plt.show()
 
@@ -103,8 +100,9 @@ def detect_hands(word_list=None, save_path=None):
 
         # overlay keyboard on the center of the frame - bottom corners seem to be screwing up hand detection
         # this needs to be done before trail generation, otherwise keyboard obscures finger and trail
-        top_left_x = int(h/2 - keyboard_height/2)
+        top_left_x = int(h/4 - keyboard_height/4)
         top_left_y = int(w/2 - keyboard_width/2)
+        crop_shape = [[top_left_x, top_left_x+keyboard_height],[top_left_y,top_left_y+keyboard_width]]
         image[top_left_x:top_left_x+keyboard_height, top_left_y:top_left_y+keyboard_width] = keyboard
 
         # capture index finger trail
@@ -120,34 +118,31 @@ def detect_hands(word_list=None, save_path=None):
             colours = list(start_colour.range_to(Color("blue"), len(index_finger_tip_points)))
 
             # draw trail
-            is_palm_open = palm_open(results.multi_hand_landmarks)
             for i in range(1, len(index_finger_tip_points)):
                 if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
                     continue
 
-                # check palm open and terminate trail generation if so
-                if is_palm_open:
-                    # create trail on blank image and save
-                    if save_path:
-                        save_trail(index_finger_tip_points, image.shape, display_text, save_path)
-                        samples_captured+=1
-                        if samples_captured == samples_per_word:
-                            word_list_index+=1 # display next word
-                            samples_captured = 0 # set count of next word to 0
-
-                    # visualise trail plot without saving coz no save path provided
-                    else:
-                        save_trail(index_finger_tip_points, image.shape)
-
-                    # pause so that save_trail isn't called multiple times
-                    time.sleep(1)
-                    # reset trail for next word if palm raised
-                    index_finger_tip_points = []
-                    break
-
-                # draw trail
                 colour = (colours[i].red*255, colours[i].green*255, colours[i].blue*255)
                 cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
+
+            # check palm open and terminate trail generation if so
+            if palm_open(results.multi_hand_landmarks):
+                # create trail on blank image and save
+                if save_path:
+                    save_trail(index_finger_tip_points, colours, image.shape, crop_shape, display_text, save_path)
+                    samples_captured+=1
+                    if samples_captured == samples_per_word:
+                        word_list_index+=1 # display next word
+                        samples_captured = 0 # set count of next word to 0
+
+                # visualise trail plot without saving coz no save path provided
+                else:
+                    save_trail(index_finger_tip_points, colours, image.shape, crop_shape)
+
+                # pause so that save_trail isn't called multiple times
+                time.sleep(1)
+                # reset trail for next word if palm raised
+                index_finger_tip_points = []
 
         elif results.multi_hand_landmarks and len(results.multi_hand_landmarks)!=1:
             print(len(results.multi_hand_landmarks))
@@ -157,12 +152,14 @@ def detect_hands(word_list=None, save_path=None):
 
         # Flip the image horizontally for a selfie-view display.
         image = cv2.flip(image, 1)
+        #crop image to only display keyboard and bottom console area
+        image = image[top_left_x:top_left_x+keyboard_height+50, top_left_y:top_left_y+keyboard_width]
 
         # display text if any - used to display words during data collection
         if word_list:
-            cv2.putText(image, display_text, org=(50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
+            cv2.putText(image, display_text, org=(10, image.shape[0] - 10), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
 
-        cv2.imshow('MediaPipe Hands', image)
+        cv2.imshow('Swiper', image)
         if cv2.waitKey(5) & 0xFF == 27:
             break
 
