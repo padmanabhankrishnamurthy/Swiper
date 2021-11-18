@@ -57,7 +57,6 @@ def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
         cv2.line(trail_image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
 
     trail_image = cv2.flip(trail_image, 1)
-
     plt.imshow(trail_image)
     plt.show()
 
@@ -71,6 +70,8 @@ def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
             filename = name+'_1.jpg'
         else:
             filename = '{}_{}.jpg'.format(name, file_dict[name]+1)
+        trail_image = trail_image * 255
+        trail_image = trail_image.astype('uint8')
         cv2.imwrite(os.path.join(path, filename), trail_image)
 
 
