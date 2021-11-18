@@ -9,7 +9,7 @@ from colour import Color
 
 # media pipe objects
 mp_hands = mp.solutions.hands
-hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detection_confidence=0.3, min_tracking_confidence=0.3)
+hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detection_confidence=0.8, min_tracking_confidence=0.8)
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -119,12 +119,13 @@ def detect_hands(word_list=None, save_path=None):
             colours = list(start_colour.range_to(Color("blue"), len(index_finger_tip_points)))
 
             # draw trail
+            is_palm_open = palm_open(results.multi_hand_landmarks)
             for i in range(1, len(index_finger_tip_points)):
                 if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
                     continue
 
                 # check palm open and terminate trail generation if so
-                if palm_open(results.multi_hand_landmarks):
+                if is_palm_open:
                     # create trail on blank image and save
                     if save_path:
                         save_trail(index_finger_tip_points, image.shape, display_text, save_path)
@@ -146,6 +147,12 @@ def detect_hands(word_list=None, save_path=None):
                 # draw trail
                 colour = (colours[i].red*255, colours[i].green*255, colours[i].blue*255)
                 cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
+
+        elif results.multi_hand_landmarks and len(results.multi_hand_landmarks)!=1:
+            print(len(results.multi_hand_landmarks))
+
+        else:
+            print(results.multi_hand_landmarks)
 
         # Flip the image horizontally for a selfie-view display.
         image = cv2.flip(image, 1)
