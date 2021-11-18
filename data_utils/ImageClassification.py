@@ -25,11 +25,12 @@ class ImageClassificationDataset(Dataset):
 
     def __getitem__(self, idx):
         image = os.path.join(self.images_dir, self.images[idx])
-        image_name = image
+        image_name = self.images[idx]
         image = np.asarray(Image.open(image))/255
+        image = image.astype(np.uint8)
 
-        transforms = T.Compose(T.ToPILImage(), T.Resize((256,256)), T.ToTensor(),
-                                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+        transforms = T.Compose([T.ToPILImage(), T.Resize((256,256)), T.ToTensor(),
+                                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
         image = transforms(image)
 
@@ -39,5 +40,11 @@ class ImageClassificationDataset(Dataset):
 
         return (image, label)
 
+if __name__ == '__main__':
+    image_dir = '../data'
+    dataset = ImageClassificationDataset(image_dir)
+    for data in dataset:
+        image, label = data
+        print(image.shape, torch.argmax(label).item(), dataset.unique_words[torch.argmax(label).item()])
 
 
