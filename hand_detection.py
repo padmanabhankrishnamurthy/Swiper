@@ -41,14 +41,12 @@ def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
     trail_image = np.zeros((h, w, c))
 
     # index finger tip points also contains an erroneous stroke depicting palm opening - we need to cut out that stroke before saving
-    # we are slicing from the beginning and not from the end because while appending index finger points, we use insert(0, point) and not append
-    # i.e, most recent points are stored first, from lower indices
     # the slice start index, 5, has been chosen arbitrarily
-    index_finger_tip_points = index_finger_tip_points[5:]
+    index_finger_tip_points = index_finger_tip_points[:-5]
 
     # initialise colours
-    start_colour = Color('orange')
-    colours = list(start_colour.range_to(Color("blue"), len(index_finger_tip_points)))
+    start_colour = Color('blue')
+    colours = list(start_colour.range_to(Color('orange'), len(index_finger_tip_points)))
 
     for i in range(1, len(index_finger_tip_points)):
         if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
@@ -114,7 +112,7 @@ def detect_hands(word_list=None, save_path=None):
             index_finger_tip = results.multi_hand_landmarks[0].landmark[8]
             index_finger_tip = (int(index_finger_tip.x*w), int(index_finger_tip.y*h))
             cv2.circle(image, index_finger_tip, 5, (255, 0, 255), cv2.FILLED)
-            index_finger_tip_points.insert(0, index_finger_tip)
+            index_finger_tip_points.append(index_finger_tip)
 
             # initialise colours for trail
             start_colour = Color('orange')
