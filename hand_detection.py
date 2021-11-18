@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import time
 import os
 
+from colour import Color
+
 # media pipe objects
 mp_hands = mp.solutions.hands
 hand_detector = mp_hands.Hands(model_complexity=0, max_num_hands=2, min_detection_confidence=0.3, min_tracking_confidence=0.3)
@@ -44,12 +46,17 @@ def save_trail(index_finger_tip_points, image_shape, name=None, path=None):
     # the slice start index, 5, has been chosen arbitrarily
     index_finger_tip_points = index_finger_tip_points[5:]
 
+    # initialise colours
+    start_colour = Color('orange')
+    colours = list(start_colour.range_to(Color("blue"), len(index_finger_tip_points)))
+
     for i in range(1, len(index_finger_tip_points)):
         if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
             continue
 
         # draw trail
-        cv2.line(trail_image, index_finger_tip_points[i - 1], index_finger_tip_points[i], (0, 0, 255), thickness=5)
+        colour = (colours[i].red, colours[i].green, colours[i].blue)
+        cv2.line(trail_image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
 
     trail_image = cv2.flip(trail_image, 1)
 
@@ -109,6 +116,10 @@ def detect_hands(word_list=None, save_path=None):
             cv2.circle(image, index_finger_tip, 5, (255, 0, 255), cv2.FILLED)
             index_finger_tip_points.insert(0, index_finger_tip)
 
+            # initialise colours for trail
+            start_colour = Color('orange')
+            colours = list(start_colour.range_to(Color("blue"), len(index_finger_tip_points)))
+
             # draw trail
             for i in range(1, len(index_finger_tip_points)):
                 if index_finger_tip_points[i - 1] is None or index_finger_tip_points[i] is None:
@@ -124,7 +135,7 @@ def detect_hands(word_list=None, save_path=None):
                             word_list_index+=1 # display next word
                             samples_captured = 0 # set count of next word to 0
 
-                    # visualise trail without saving coz no save path provided
+                    # visualise trail plot without saving coz no save path provided
                     else:
                         save_trail(index_finger_tip_points, image.shape)
 
@@ -135,7 +146,8 @@ def detect_hands(word_list=None, save_path=None):
                     break
 
                 # draw trail
-                cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], (0, 0, 255), thickness=5)
+                colour = (colours[i].red*255, colours[i].green*255, colours[i].blue*255)
+                cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
 
         # Flip the image horizontally for a selfie-view display.
         image = cv2.flip(image, 1)
