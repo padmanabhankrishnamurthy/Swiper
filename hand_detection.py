@@ -71,6 +71,15 @@ def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=N
         trail_image = trail_image.astype('uint8')
         cv2.imwrite(os.path.join(path, filename), trail_image)
 
+def nav_gestures(landmarks):
+    gesture = None
+    landmarks = landmarks[0]
+    opalm_up = all(landmarks.landmark[l+3].y < landmarks.landmark[l].y for l in [5,9,13,17])
+    opalm_down = all(landmarks.landmark[l+3].y > landmarks.landmark[l].y for l in [5,9,13,17])
+    swipe_left = all(landmarks.landmark[4].x < landmarks.landmark[l].x for l in [8,12,16,20])
+    gesture = "open_palm_up: " + str(opalm_up) + " opalm_down: " + str(opalm_down) + " swipe_left: " + str(swipe_left)
+    return gesture
+
 
 def detect_hands(word_list=None, save_path=None):
     index_finger_tip_points = []
@@ -105,8 +114,12 @@ def detect_hands(word_list=None, save_path=None):
         crop_shape = [[top_left_x, top_left_x+keyboard_height],[top_left_y,top_left_y+keyboard_width]]
         image[top_left_x:top_left_x+keyboard_height, top_left_y:top_left_y+keyboard_width] = keyboard
 
+        gesture_test = ""
+
         # capture index finger trail
         if results.multi_hand_landmarks and len(results.multi_hand_landmarks)==1:
+
+            gesture_test = nav_gestures(results.multi_hand_landmarks)
 
             index_finger_tip = results.multi_hand_landmarks[0].landmark[8]
             index_finger_tip = (int(index_finger_tip.x*w), int(index_finger_tip.y*h))
@@ -126,7 +139,7 @@ def detect_hands(word_list=None, save_path=None):
                 cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
 
             # check palm open and terminate trail generation if so
-            if palm_open(results.multi_hand_landmarks):
+            if False and palm_open(results.multi_hand_landmarks):
                 # create trail on blank image and save
                 if save_path:
                     save_trail(index_finger_tip_points, colours, image.shape, crop_shape, display_text, save_path)
@@ -157,7 +170,10 @@ def detect_hands(word_list=None, save_path=None):
 
         # display text if any - used to display words during data collection
         if word_list:
-            cv2.putText(image, display_text, org=(10, image.shape[0] - 10), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
+            cv2.putText(image, display_text, org=(10, image.shape[0] - 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
+
+        image[-50:,:] = 0
+        cv2.putText(image, gesture_test, org=(10, image.shape[0] - 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.55, thickness=1, color=[255,255,0])
 
         cv2.imshow('Swiper', image)
         if cv2.waitKey(5) & 0xFF == 27:
