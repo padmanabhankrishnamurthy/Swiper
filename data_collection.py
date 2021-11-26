@@ -10,6 +10,11 @@ def get_stored_words(save_path):
             stored.add(file[:file.find('_')].lower())
     return stored
 
+def get_words_file(word_list):
+    with open('words.txt', 'w') as file:
+        for word in word_list:
+            file.write(word+'\n')
+
 def get_unique_words(path, save_path):
     stored_words = get_stored_words(save_path)
 
@@ -43,3 +48,5 @@ if __name__ == '__main__':
     # print(len(stored_words), stored_words)
     # print(len(unique_words), unique_words)
     # print([word for word in unique_words if word in stored_words])
+    # word_list = get_stored_words('data')
+    # get_words_file(word_list)

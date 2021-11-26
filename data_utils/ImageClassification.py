@@ -10,7 +10,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 class ImageClassificationDataset(Dataset):
-    def __init__(self, images_dir):
+    def __init__(self, images_dir, words_file):
         self.images_dir = images_dir
         self.images = os.listdir(self.images_dir)
 
@@ -18,12 +18,14 @@ class ImageClassificationDataset(Dataset):
         if '.DS_Store' in self.images:
             self.images.remove('.DS_Store')
 
-        self.unique_words = self.get_unique_words()
+        self.unique_words = self.get_words(words_file)
         self.num_classes = len(self.unique_words)
 
-    def get_unique_words(self):
-        unique_words = set([file[:file.find('_')] for file in self.images])
-        return list(unique_words)
+    def get_words(self, words_file):
+        # unique_words = set([file[:file.find('_')] for file in self.images])
+        # return list(unique_words)
+        unique_words = [word.strip() for word in open(words_file, 'r')]
+        return unique_words
 
     def __len__(self):
         return len(os.listdir(self.images_dir))
@@ -48,7 +50,8 @@ class ImageClassificationDataset(Dataset):
 
 if __name__ == '__main__':
     image_dir = '../data'
-    dataset = ImageClassificationDataset(image_dir)
+    words_file = '../words.txt'
+    dataset = ImageClassificationDataset(image_dir, words_file)
     print(dataset.num_classes)
     print(dataset.unique_words)
 
