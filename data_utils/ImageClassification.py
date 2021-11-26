@@ -13,6 +13,11 @@ class ImageClassificationDataset(Dataset):
     def __init__(self, images_dir):
         self.images_dir = images_dir
         self.images = os.listdir(self.images_dir)
+
+        # get rid of .DS_Store
+        if '.DS_Store' in self.images:
+            self.images.remove('.DS_Store')
+
         self.unique_words = self.get_unique_words()
         self.num_classes = len(self.unique_words)
 
@@ -45,6 +50,8 @@ if __name__ == '__main__':
     image_dir = '../data'
     dataset = ImageClassificationDataset(image_dir)
     print(dataset.num_classes)
+    print(dataset.unique_words)
+
     for data in dataset:
         image, label_one_hot = data
 
@@ -60,6 +67,7 @@ if __name__ == '__main__':
         plt.imshow(image)
         plt.title(label)
         plt.show()
+        break
 
 
 
