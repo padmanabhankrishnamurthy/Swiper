@@ -37,10 +37,10 @@ def train(model, train_dataset, batch_size=4, save_path=None, save_name=None):
             optimizer.step()
 
             epoch_loss+=loss
-            pbar.set_description('Epoch: {} Batch Loss: {}'.format(epoch+1, loss.item()/batch_size))
+            pbar.set_description('Epoch: {} Batch Loss: {}'.format(epoch+1, loss.item()))
 
         if (epoch+1)%10==0:
-            print('Epoch: {} | Loss: {}'.format(epoch+1, round(epoch_loss/len(train_dataset), 6)))
+            print('Epoch: {} | Loss: {}'.format(epoch+1, epoch_loss/len(train_loader)))
             if save_path and save_name:
                 torch.save(model.state_dict(), '{}/{}_{}.pth'.format(save_path, save_name, epoch+1))
 
