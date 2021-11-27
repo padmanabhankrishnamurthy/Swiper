@@ -4,3 +4,4 @@ __pycache__/
 data/
 data_backup/
 stored_models/
+eval_data/
