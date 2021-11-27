@@ -41,6 +41,7 @@ def main():
     detect_hands(words, save_path)
 
 if __name__ == '__main__':
+    pass
     # main()
     # stored_words = get_stored_words('data')
     # unique_words = get_unique_words('lyrics.txt', 'data')

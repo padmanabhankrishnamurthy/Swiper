@@ -4,8 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
+from PIL import Image
 
 from colour import Color
+
 
 # media pipe objects
 mp_hands = mp.solutions.hands
@@ -36,7 +38,7 @@ def palm_open(landmarks):
 
     return middle_open
 
-def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=None, path=None):
+def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=None, path=None, inference=False):
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
 
@@ -54,6 +56,7 @@ def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=N
 
     trail_image = cv2.flip(trail_image, 1)
     trail_image = trail_image[crop_shape[0][0]:crop_shape[0][1], crop_shape[1][0]:crop_shape[1][1]]
+
     plt.imshow(trail_image)
     plt.show()
 
@@ -72,7 +75,7 @@ def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=N
         cv2.imwrite(os.path.join(path, filename), trail_image)
 
 
-def detect_hands(word_list=None, save_path=None):
+def detect_hands(word_list=None, save_path=None, inference=False):
     index_finger_tip_points = []
     word_list_index = 0
     samples_captured = 0
@@ -137,18 +140,18 @@ def detect_hands(word_list=None, save_path=None):
 
                 # visualise trail plot without saving coz no save path provided
                 else:
-                    save_trail(index_finger_tip_points, colours, image.shape, crop_shape)
+                    save_trail(index_finger_tip_points, colours, image.shape, crop_shape, inference=inference)
 
                 # pause so that save_trail isn't called multiple times
                 time.sleep(1)
                 # reset trail for next word if palm raised
                 index_finger_tip_points = []
 
-        elif results.multi_hand_landmarks and len(results.multi_hand_landmarks)!=1:
-            print(len(results.multi_hand_landmarks))
-
-        else:
-            print(results.multi_hand_landmarks)
+        # elif results.multi_hand_landmarks and len(results.multi_hand_landmarks)!=1:
+        #     print(len(results.multi_hand_landmarks))
+        #
+        # else:
+        #     print(results.multi_hand_landmarks)
 
         # Flip the image horizontally for a selfie-view display.
         image = cv2.flip(image, 1)
@@ -166,4 +169,4 @@ def detect_hands(word_list=None, save_path=None):
     cap.release()
 
 if __name__ == '__main__':
-    detect_hands()
+    detect_hands(inference=True)

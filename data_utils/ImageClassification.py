@@ -42,7 +42,7 @@ class ImageClassificationDataset(Dataset):
 
         image = transforms(image)
 
-        label = image_name[:image_name.find('_')]
+        label = image_name[:image_name.find('_')].lower()
         label = torch.tensor([self.unique_words.index(label)])
         label = F.one_hot(label, self.num_classes)
 
