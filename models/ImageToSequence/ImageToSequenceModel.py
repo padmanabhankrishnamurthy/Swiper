@@ -3,7 +3,7 @@ import torch.nn as nn
 import torchvision.models as models
 
 class ImageToSequenceModel(nn.Module):
-    def __init__(self, max_seq_length, image_height, image_width, image_embedding_dim=512):
+    def __init__(self, max_seq_length, image_embedding_dim=512):
         '''
 
         :param max_seq_length: maximum word length, i.e, maximum number of characters in a word in the training data
@@ -14,14 +14,12 @@ class ImageToSequenceModel(nn.Module):
 
         super(ImageToSequenceModel, self).__init__()
         self.max_seq_length = max_seq_length
-        self.image_height = image_height
-        self.image_width = image_width
         self.image_embedding_dim = image_embedding_dim
 
-        self.image_encoder = self.get_image_encoder(self.image_height, self.image_width, self.image_embedding_dim)
+        self.image_encoder = self.get_image_encoder(self.image_embedding_dim)
         self.decoder = self.get_decoder(self.image_embedding_dim, self.max_seq_length)
 
-    def get_image_encoder(self, height, width, embedding_dim):
+    def get_image_encoder(self, embedding_dim):
         '''
         Use MobileNetV2's feature extractors as the image encoder, set the output_size of the last layer of the feature extractor to embedding_dim
         :param height: height of input image
@@ -46,9 +44,9 @@ class ImageToSequenceModel(nn.Module):
         '''
         :return: Decoder is just a linear layer that takes in the image embedding and the character sequence generated upto the current timestep, and predicts the next character
         '''
-        input_size = image_embedding_dim + max_seq_length
+        input_size = image_embedding_dim + max_seq_length*29 # multiply by length of character vector because every character sequence is flattened during forward pass
         decoder = nn.Sequential(
-            nn.Linear(in_features=input_size, out_features=27), # 26 alphabets + <endToken>
+            nn.Linear(in_features=input_size, out_features=29), # 26 alphabets + <start> + <end> + <pad>
             nn.Softmax()
         )
         return decoder

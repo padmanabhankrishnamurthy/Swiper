@@ -1,6 +1,8 @@
 import torch
 import torchvision.transforms as T
+import torch.nn.functional as F
 from torch.utils.data import Dataset
+
 import os
 import numpy as np
 from PIL import Image
@@ -15,9 +17,27 @@ class ImageToSequenceDataset(Dataset):
         self.index_to_char_mapping = {0:'<start>'}
         self.index_to_char_mapping.update({i+1:chr(c) for i,c in enumerate(range(ord('a'),ord('z')+1))})
         self.index_to_char_mapping[27] = '<end>'
+        self.index_to_char_mapping[28] = '<pad>'
+
+        self.char_to_index_mapping = {v:k for k,v in self.index_to_char_mapping.items()}
+
+        self.max_seq_length = self.get_max_seq_length(self.images)
 
     def __len__(self):
         return len(self.images)
+
+    def get_max_seq_length(self, images):
+        max_len = 0
+        for file in images:
+            name = file[:file.find('.jpg')]
+            length = len(name)
+            if length > max_len:
+                max_len = length
+        return max_len + 2 # adding 2 coz start and end tokens
+
+    def label_tensor_to_char(self, char_sequence):
+        label = [self.index_to_char_mapping[torch.argmax(tensor).item()] for tensor in char_sequence]
+        return label
 
     def __getitem__(self, idx):
         image = os.path.join(self.image_dir, self.images[idx])
@@ -33,6 +53,14 @@ class ImageToSequenceDataset(Dataset):
         label.insert(0, '<start>')
         label.append('<end>')
 
+        for i in range(self.max_seq_length - len(label)):
+            label.append('<pad>')
+
+        # one hot encode every character in the label
+        label = [torch.tensor(self.char_to_index_mapping[char]) for char in label]
+        label = torch.stack([F.one_hot(char_tensor, len(self.index_to_char_mapping)) for char_tensor in label])
+        label = label.type(torch.FloatTensor)
+
         return (image, label)
 
 if __name__ == '__main__':
@@ -41,6 +69,8 @@ if __name__ == '__main__':
 
     for data in dataset:
         image, label = data
+
+        label = [dataset.index_to_char_mapping[torch.argmax(tensor).item()] for tensor in label]
 
         print(image.shape, label)
 
