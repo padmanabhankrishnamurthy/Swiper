@@ -9,6 +9,11 @@ from PIL import Image
 from enum import Enum
 from colour import Color
 from numpy.lib.function_base import disp
+import torch
+import torchvision.transforms as T
+import torchvision.models as models
+import torch.nn as nn
+
 
 
 GESTURE_WRITE = 1
@@ -32,29 +37,25 @@ keyboard = cv2.resize(keyboard, (keyboard_width, keyboard_height), interpolation
 # flip the keyboard because all video frames are ultimately flipped again before being rendered
 keyboard = cv2.flip(keyboard, 1)
 
+def load_model(words_list='words.txt', checkpoint='checkpoints/classifier_1000.pth'):
+    words = [word.strip() for word in open(words_list, 'r')]
+    model = models.mobilenet_v2(pretrained=True)
+    model.classifier[1] = nn.Linear(in_features=1280, out_features=len(words), bias=True)
+    model.load_state_dict(torch.load(checkpoint, map_location='cpu'))
+    return model, words
+
+def transform_input(img):
+    img = 255 * img
+    img = img.astype(np.uint8)
+    img = np.asarray(img)
+    transforms = T.Compose([T.ToPILImage(), T.ToTensor(),T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+    img = transforms(img)
+    return torch.unsqueeze(img, dim=0)
 
 def distance(a,b):
     return (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y)
 
-def gesture_control(landmarks):
-    gesture = None
-    landmarks = landmarks[0]
-    pf = distance(landmarks.landmark[6], landmarks.landmark[0]) < distance(landmarks.landmark[8], landmarks.landmark[0])
-    c_f3 = all(distance(landmarks.landmark[l+2], landmarks.landmark[0]) < distance(landmarks.landmark[l], landmarks.landmark[0]) for l in [10,14,18])
-    swipe_left = all(landmarks.landmark[4].x < landmarks.landmark[l].x for l in [8,12,16,20])
-
-    if pf and not c_f3:
-        if swipe_left:
-            gesture = GESTURE_DELETE
-        else:
-            gesture = GESTURE_STOP
-    elif pf and c_f3:
-        gesture = GESTURE_WRITE
-
-    return gesture
-
-def infer_trail(index_finger_tip_points, colours, image_shape, crop_shape):
-    return "Hello"
+def infer_trail(model, word_list, index_finger_tip_points, colours, image_shape, crop_shape):
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
 
@@ -73,6 +74,28 @@ def infer_trail(index_finger_tip_points, colours, image_shape, crop_shape):
     trail_image = cv2.flip(trail_image, 1)
     trail_image = trail_image[crop_shape[0][0]:crop_shape[0][1], crop_shape[1][0]:crop_shape[1][1]]
 
+    #Transform image to feed into model
+    trail_image = transform_input(trail_image)
+    output = model(trail_image)
+    label_index = torch.argmax(output)
+    return word_list[label_index]
+
+def gesture_control(landmarks):
+    gesture = None
+    landmarks = landmarks[0]
+    pf = distance(landmarks.landmark[6], landmarks.landmark[0]) < distance(landmarks.landmark[8], landmarks.landmark[0])
+    c_f3 = all(distance(landmarks.landmark[l+2], landmarks.landmark[0]) < distance(landmarks.landmark[l], landmarks.landmark[0]) for l in [10,14,18])
+    swipe_left = all(landmarks.landmark[4].x < landmarks.landmark[l].x for l in [8,12,16,20])
+
+    if pf and not c_f3:
+        if swipe_left:
+            gesture = GESTURE_DELETE
+        else:
+            gesture = GESTURE_STOP
+    elif pf and c_f3:
+        gesture = GESTURE_WRITE
+
+    return gesture
 
 def detect_hands():
     index_finger_tip_points = []
@@ -81,6 +104,9 @@ def detect_hands():
     prev_ges = curr_ges
 
     cap = cv2.VideoCapture(0)
+
+    SwypNET, word_list = load_model()
+    SwypNET.eval()
 
     while cap.isOpened():
         success, image = cap.read()
@@ -126,7 +152,7 @@ def detect_hands():
                     cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
             elif prev_ges == GESTURE_WRITE and curr_ges == GESTURE_STOP:
                 # visualise trail plot without saving coz no save path provided
-                display_text += infer_trail(index_finger_tip_points, colours, image.shape, crop_shape)
+                display_text += infer_trail(SwypNET, word_list, index_finger_tip_points, colours, image.shape, crop_shape)
                 # reset trail for next word if palm raised
                 index_finger_tip_points = []
             elif curr_ges == GESTURE_DELETE:

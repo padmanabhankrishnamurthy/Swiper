@@ -12,7 +12,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import cv2
 
-def load_model(words_list='/Users/padmanabhankrishnamurthy/PycharmProjects/Swiper/words.txt', checkpoint='/Users/padmanabhankrishnamurthy/PycharmProjects/Swiper/stored_models/classifier_1000.pth'):
+def load_model(words_list='words.txt', checkpoint='checkpoints/classifier_1000.pth'):
     words = [word.strip() for word in open(words_list, 'r')]
     model = models.mobilenet_v2(pretrained=True)
     model.classifier[1] = nn.Linear(in_features=1280, out_features=len(words), bias=True)
