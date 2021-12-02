@@ -40,8 +40,10 @@ class ImageToSequenceDataset(Dataset):
         return label
 
     def __getitem__(self, idx):
-        image = os.path.join(self.image_dir, self.images[idx])
         image_name = self.images[idx]
+        if type(image_name)==list:
+            image_name = image_name[0]
+        image = os.path.join(self.image_dir, image_name)
         image = np.asarray(Image.open(image))
 
         transforms = T.Compose([T.ToPILImage(), T.ToTensor(),
@@ -61,7 +63,7 @@ class ImageToSequenceDataset(Dataset):
         label = torch.stack([F.one_hot(char_tensor, len(self.index_to_char_mapping)) for char_tensor in label])
         label = label.type(torch.FloatTensor)
 
-        return (image, label)
+        return (image, label, image_name)
 
 if __name__ == '__main__':
     image_dir = '../data'

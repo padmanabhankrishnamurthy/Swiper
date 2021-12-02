@@ -16,7 +16,7 @@ def norm_tensor_to_img(image, label=None):
         plt.title(label)
     plt.show()
 
-def get_start_token_tensor(train_dataset):
+def get_start_sequence_tensor(train_dataset):
     start_token = ['<pad>'] * train_dataset.max_seq_length
     start_token[0] = '<start>'
     start_token = [torch.tensor(train_dataset.char_to_index_mapping[char]) for char in start_token]
