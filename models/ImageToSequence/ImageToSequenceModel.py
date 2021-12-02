@@ -17,7 +17,7 @@ class ImageToSequenceModel(nn.Module):
         self.image_embedding_dim = image_embedding_dim
 
         self.image_encoder = self.get_image_encoder(self.image_embedding_dim)
-        self.decoder = self.get_decoder(self.image_embedding_dim, self.max_seq_length)
+        self.decoder = self.get_decoder()
 
     def get_image_encoder(self, embedding_dim):
         '''
@@ -40,16 +40,75 @@ class ImageToSequenceModel(nn.Module):
 
         return encoder
 
-    def get_decoder(self, image_embedding_dim, max_seq_length):
+    def get_decoder(self):
         '''
-        :return: Decoder is just a linear layer that takes in the image embedding and the character sequence generated upto the current timestep, and predicts the next character
+        :return: DecoderRNN object 
         '''
-        input_size = image_embedding_dim + max_seq_length*29 # multiply by length of character vector because every character sequence is flattened during forward pass
-        decoder = nn.Sequential(
-            nn.Linear(in_features=input_size, out_features=29), # 26 alphabets + <start> + <end> + <pad>
-            nn.Softmax()
-        )
+
+        decoder = DecoderRNN(embed_size=64, hidden_size=512, vocab_size=29)
         return decoder
+
+class DecoderRNN(nn.Module):
+    def __init__(self, embed_size, hidden_size, vocab_size):
+        super(DecoderRNN, self).__init__()
+
+        # define the properties
+        self.embed_size = embed_size
+        self.hidden_size = hidden_size
+        self.vocab_size = vocab_size
+
+        # embedding layer
+        self.embed = nn.Embedding(num_embeddings=self.vocab_size, embedding_dim=self.embed_size)
+
+        # lstm cell
+        self.lstm_cell = nn.LSTMCell(input_size=embed_size, hidden_size=hidden_size)
+
+        # output fully connected layer
+        self.fc_out = nn.Linear(in_features=self.hidden_size, out_features=self.vocab_size)
+
+        # activations
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, features, label):
+
+        # batch size
+        batch_size = features.size(0)
+
+        # init the hidden and cell states to zeros
+        hidden_state = torch.zeros((batch_size, self.hidden_size))
+        cell_state = torch.zeros((batch_size, self.hidden_size))
+
+        # define the output tensor placeholder
+        # print('captions ', captions.shape)
+        outputs = torch.empty((batch_size, label.size(1), self.vocab_size))
+        # print(outputs.shape)
+
+        # embed the captions
+        # print(captions.shape)
+        label = torch.stack([torch.argmax(char) for char in label[0]])
+        label_embed = self.embed(label)
+        label_embed = torch.unsqueeze(label_embed, dim=0)
+        # print(captions.shape, label_embed.shape)
+
+        # pass the caption word by word
+        # print(label.shape, label.size(), label.size(0), label_embed.shape)
+        for t in range(label.size(0)):
+
+            # for the first time step the input is the feature vector
+            if t == 0:
+                hidden_state, cell_state = self.lstm_cell(features, (hidden_state, cell_state))
+
+            # for the 2nd+ time step, using teacher forcer
+            else:
+                hidden_state, cell_state = self.lstm_cell(label_embed[:, t, :], (hidden_state, cell_state))
+
+            # output of the attention mechanism
+            out = self.fc_out(hidden_state)
+
+            # build the output tensor
+            outputs[:, t, :] = out
+
+        return outputs
 
 
 
