@@ -45,7 +45,6 @@ def train(model, train_dataset, batch_size=4, save_path=None, save_name=None):
                 torch.save(model.state_dict(), '{}/{}_{}.pth'.format(save_path, save_name, epoch+1))
 
 
-
 if __name__ == '__main__':
     images_dir = '../data'
     train_dataset = ImageClassificationDataset(images_dir)

@@ -42,7 +42,7 @@ class ImageToSequenceModel(nn.Module):
 
     def get_decoder(self):
         '''
-        :return: DecoderRNN object 
+        :return: DecoderRNN object
         '''
 
         decoder = DecoderRNN(embed_size=64, hidden_size=512, vocab_size=29)
@@ -69,7 +69,7 @@ class DecoderRNN(nn.Module):
         # activations
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, features, label):
+    def forward(self, features, label, teacher_forcing=False):
 
         # batch size
         batch_size = features.size(0)
@@ -100,7 +100,13 @@ class DecoderRNN(nn.Module):
 
             # for the 2nd+ time step, using teacher forcer
             else:
-                hidden_state, cell_state = self.lstm_cell(label_embed[:, t, :], (hidden_state, cell_state))
+                if teacher_forcing:
+                    hidden_state, cell_state = self.lstm_cell(label_embed[:, t, :], (hidden_state, cell_state))
+                else:
+                    output_indices = torch.stack([torch.argmax(char) for char in outputs[0]])
+                    output_embed = self.embed(output_indices)
+                    output_embed = torch.unsqueeze(output_embed, dim=0)
+                    hidden_state, cell_state = self.lstm_cell(output_embed[:, t-1, :], (hidden_state, cell_state))
 
             # output of the attention mechanism
             out = self.fc_out(hidden_state)
