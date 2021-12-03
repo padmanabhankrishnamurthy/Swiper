@@ -75,8 +75,8 @@ class DecoderRNN(nn.Module):
         batch_size = features.size(0)
 
         # init the hidden and cell states to zeros
-        hidden_state = torch.zeros((batch_size, self.hidden_size))
-        cell_state = torch.zeros((batch_size, self.hidden_size))
+        hidden_state = torch.zeros((batch_size, self.hidden_size)).to('cuda')
+        cell_state = torch.zeros((batch_size, self.hidden_size)).to('cuda')
 
         # define the output tensor placeholder
         # print('captions ', captions.shape)
@@ -103,8 +103,8 @@ class DecoderRNN(nn.Module):
                 if teacher_forcing:
                     hidden_state, cell_state = self.lstm_cell(label_embed[:, t, :], (hidden_state, cell_state))
                 else:
-                    output_indices = torch.stack([torch.argmax(char) for char in outputs[0]])
-                    output_embed = self.embed(output_indices)
+                    output_indices = torch.stack([torch.argmax(char) for char in outputs[0]]).to('cuda')
+                    output_embed = self.embed(output_indices).to('cuda')
                     output_embed = torch.unsqueeze(output_embed, dim=0)
                     hidden_state, cell_state = self.lstm_cell(output_embed[:, t-1, :], (hidden_state, cell_state))
 
