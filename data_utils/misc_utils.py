@@ -16,6 +16,10 @@ def norm_tensor_to_img(image, label=None):
         plt.title(label)
     plt.show()
 
+def get_words(words_file):
+    unique_words = [word.strip() for word in open(words_file, 'r')]
+    return unique_words
+
 def get_start_sequence_tensor(train_dataset):
     start_token = ['<pad>'] * train_dataset.max_seq_length
     start_token[0] = '<start>'

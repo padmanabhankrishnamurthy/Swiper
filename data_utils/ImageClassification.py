@@ -46,7 +46,7 @@ class ImageClassificationDataset(Dataset):
         label = torch.tensor([self.unique_words.index(label)])
         label = F.one_hot(label, self.num_classes)
 
-        return (image, label)
+        return (image, label, image_name)
 
 if __name__ == '__main__':
     image_dir = '../data'
