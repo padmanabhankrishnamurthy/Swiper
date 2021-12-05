@@ -2,8 +2,10 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 
+from BeamSearchDecoder import BeamDecoder
+
 class ImageToSequenceModel(nn.Module):
-    def __init__(self, max_seq_length, image_embedding_dim=512):
+    def __init__(self, max_seq_length, image_embedding_dim=512, device='cpu', beam=False):
         '''
 
         :param max_seq_length: maximum word length, i.e, maximum number of characters in a word in the training data
@@ -17,7 +19,7 @@ class ImageToSequenceModel(nn.Module):
         self.image_embedding_dim = image_embedding_dim
 
         self.image_encoder = self.get_image_encoder(self.image_embedding_dim)
-        self.decoder = self.get_decoder()
+        self.decoder = self.get_decoder(device=device, beam=beam)
 
     def get_image_encoder(self, embedding_dim):
         '''
@@ -40,22 +42,26 @@ class ImageToSequenceModel(nn.Module):
 
         return encoder
 
-    def get_decoder(self):
+    def get_decoder(self, device, beam=False):
         '''
         :return: DecoderRNN object
         '''
 
-        decoder = DecoderRNN(embed_size=64, hidden_size=512, vocab_size=29)
+        if beam:
+            decoder = BeamDecoder(embed_size=64, hidden_size=512, vocab_size=29, device=device)
+        else:
+            decoder = DecoderRNN(embed_size=64, hidden_size=512, vocab_size=29, device=device)
         return decoder
 
 class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size):
+    def __init__(self, embed_size, hidden_size, vocab_size, device='cpu'):
         super(DecoderRNN, self).__init__()
 
         # define the properties
         self.embed_size = embed_size
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
+        self.device = device
 
         # embedding layer
         self.embed = nn.Embedding(num_embeddings=self.vocab_size, embedding_dim=self.embed_size)
@@ -69,44 +75,40 @@ class DecoderRNN(nn.Module):
         # activations
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, features, label, teacher_forcing=False):
+    def forward(self, features, label=None, max_seq_len=18, teacher_forcing=False):
 
         # batch size
         batch_size = features.size(0)
 
         # init the hidden and cell states to zeros
-        hidden_state = torch.zeros((batch_size, self.hidden_size)).to('cuda')
-        cell_state = torch.zeros((batch_size, self.hidden_size)).to('cuda')
+        hidden_state = torch.zeros((batch_size, self.hidden_size)).to(self.device)
+        cell_state = torch.zeros((batch_size, self.hidden_size)).to(self.device)
 
         # define the output tensor placeholder
-        # print('captions ', captions.shape)
-        outputs = torch.empty((batch_size, label.size(1), self.vocab_size))
-        # print(outputs.shape)
+        outputs = torch.empty((batch_size, max_seq_len, self.vocab_size))
 
         # embed the captions
-        # print(captions.shape)
-        label = torch.stack([torch.argmax(char) for char in label[0]])
-        label_embed = self.embed(label)
-        label_embed = torch.unsqueeze(label_embed, dim=0)
-        # print(captions.shape, label_embed.shape)
+        if label:
+            label = torch.stack([torch.argmax(char) for char in label[0]])
+            label_embed = self.embed(label)
+            label_embed = torch.unsqueeze(label_embed, dim=0)
 
-        # pass the caption word by word
-        # print(label.shape, label.size(), label.size(0), label_embed.shape)
-        for t in range(label.size(0)):
+        # decoder loop
+        for t in range(max_seq_len):
 
             # for the first time step the input is the feature vector
-            if t == 0:
-                hidden_state, cell_state = self.lstm_cell(features, (hidden_state, cell_state))
+            # if t==0:
+            hidden_state, cell_state = self.lstm_cell(features, (hidden_state, cell_state))
 
-            # for the 2nd+ time step, using teacher forcer
-            else:
-                if teacher_forcing:
-                    hidden_state, cell_state = self.lstm_cell(label_embed[:, t, :], (hidden_state, cell_state))
-                else:
-                    output_indices = torch.stack([torch.argmax(char) for char in outputs[0]]).to('cuda')
-                    output_embed = self.embed(output_indices).to('cuda')
-                    output_embed = torch.unsqueeze(output_embed, dim=0)
-                    hidden_state, cell_state = self.lstm_cell(output_embed[:, t-1, :], (hidden_state, cell_state))
+            # for the 2nd+ time step
+            # else:
+            #     if teacher_forcing:
+            #         hidden_state, cell_state = self.lstm_cell(label_embed[:, t, :], (hidden_state, cell_state))
+            #     else:
+            #         output_indices = torch.stack([torch.argmax(char) for char in outputs[0]]).to(self.device)
+            #         output_embed = self.embed(output_indices).to(self.device)
+            #         output_embed = torch.unsqueeze(output_embed, dim=0)
+            #         hidden_state, cell_state = self.lstm_cell(output_embed[:, t-1, :], (hidden_state, cell_state))
 
             # output of the attention mechanism
             out = self.fc_out(hidden_state)
