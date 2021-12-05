@@ -169,4 +169,4 @@ def detect_hands(word_list=None, save_path=None, inference=False):
     cap.release()
 
 if __name__ == '__main__':
-    detect_hands(inference=True)
+    detect_hands()

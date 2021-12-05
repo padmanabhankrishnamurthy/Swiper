@@ -17,7 +17,7 @@ import numpy as np
 torch.manual_seed(7)
 
 
-def train(model, train_dataset, save_path=None, save_name=None):
+def train(model, train_dataset, save_path=None, save_name=None, device='cpu'):
     epochs = 1000
     optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
     criterion = nn.CrossEntropyLoss()
@@ -33,9 +33,9 @@ def train(model, train_dataset, save_path=None, save_name=None):
             optimizer.zero_grad()
             image, label, image_name = data
 
-            model.to('cuda')
-            image_embedding = model.image_encoder(image.to('cuda'))
-            decoder_output = model.decoder(image_embedding.to('cuda'), label.to('cuda'))
+            model.to(device)
+            image_embedding = model.image_encoder(image.to(device))
+            decoder_output = model.decoder(image_embedding.to(device), label.to(device))
             target = torch.stack([torch.argmax(char) for char in label[0]])
             loss = criterion(decoder_output[0], target)
 
@@ -54,12 +54,13 @@ def train(model, train_dataset, save_path=None, save_name=None):
 
 if __name__ == '__main__':
     image_dir = '/content/drive/MyDrive/data'
+    image_dir = '../../data'
     train_dataset = ImageToSequenceDataset(image_dir)
 
-    model = ImageToSequenceModel(max_seq_length=train_dataset.max_seq_length, image_embedding_dim=64)
-    ckpt = '/content/drive/MyDrive/swiper_models/img2seq_no_forcing/img2seq_no_forcing_2000_0.3214365839958191.pth'
-    model.load_state_dict(torch.load(ckpt))
+    model = ImageToSequenceModel(max_seq_length=train_dataset.max_seq_length, image_embedding_dim=64, beam=True)
+    # ckpt = '/content/drive/MyDrive/swiper_models/img2seq_no_forcing/img2seq_no_forcing_2000_0.3214365839958191.pth'
+    # model.load_state_dict(torch.load(ckpt))
 
-    save_path = '/content/drive/MyDrive/swiper_models/img2seq_no_forcing'
-    save_name = 'img2seq_no_forcing'
-    train(model, train_dataset, save_name, save_path)
+    # save_path = '/content/drive/MyDrive/swiper_models/img2seq_no_forcing'
+    # save_name = 'img2seq_no_forcing'
+    train(model, train_dataset)
