@@ -13,7 +13,7 @@ import torch
 import torchvision.transforms as T
 import torchvision.models as models
 import torch.nn as nn
-
+from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
 
 
 GESTURE_WRITE = 1
@@ -37,12 +37,17 @@ keyboard = cv2.resize(keyboard, (keyboard_width, keyboard_height), interpolation
 # flip the keyboard because all video frames are ultimately flipped again before being rendered
 keyboard = cv2.flip(keyboard, 1)
 
-def load_model(words_list='words.txt', checkpoint='checkpoints/classifier_1000.pth'):
+def load_classification_model(words_list='words.txt', checkpoint='checkpoints/classifier_1000.pth'):
     words = [word.strip() for word in open(words_list, 'r')]
     model = models.mobilenet_v2(pretrained=True)
     model.classifier[1] = nn.Linear(in_features=1280, out_features=len(words), bias=True)
     model.load_state_dict(torch.load(checkpoint, map_location='cpu'))
     return model, words
+
+def load_sequence_model(checkpoint='checkpoints/img2seq_470_0.0001769000373315066.pth'):
+    model = ImageToSequenceModel(max_seq_length=20, image_embedding_dim=64)
+    model.load_state_dict(torch.load(checkpoint, map_location='cpu'))
+    return model
 
 def transform_input(img):
     img = 255 * img
@@ -52,10 +57,7 @@ def transform_input(img):
     img = transforms(img)
     return torch.unsqueeze(img, dim=0)
 
-def distance(a,b):
-    return (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y)
-
-def infer_trail(model, word_list, index_finger_tip_points, colours, image_shape, crop_shape):
+def gen_trail(index_finger_tip_points, colours, image_shape, crop_shape):
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
 
@@ -73,12 +75,26 @@ def infer_trail(model, word_list, index_finger_tip_points, colours, image_shape,
 
     trail_image = cv2.flip(trail_image, 1)
     trail_image = trail_image[crop_shape[0][0]:crop_shape[0][1], crop_shape[1][0]:crop_shape[1][1]]
+    return trail_image
 
+def infer_classification_trail(model, word_list, index_finger_tip_points, colours, image_shape, crop_shape):
+    trail_image = gen_trail(index_finger_tip_points, colours, image_shape, crop_shape)
     #Transform image to feed into model
     trail_image = transform_input(trail_image)
     output = model(trail_image)
     label_index = torch.argmax(output)
     return word_list[label_index]
+
+def infer_sequence_trail(model, index_finger_tip_points, colours, image_shape, crop_shape):
+    trail_image = gen_trail(index_finger_tip_points, colours, image_shape, crop_shape)
+    #Transform image to feed into model
+    trail_image = transform_input(trail_image)
+    image_embedding = model.image_encoder(trail_image)
+    output = model.decoder.inference(image_embedding)
+    return output
+
+def distance(a,b):
+    return (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y)
 
 def gesture_control(landmarks):
     gesture = None
@@ -97,7 +113,7 @@ def gesture_control(landmarks):
 
     return gesture
 
-def detect_hands():
+def detect_hands(model_type):
     index_finger_tip_points = []
     display_text = ""
     curr_ges = GESTURE_DELETE
@@ -105,7 +121,10 @@ def detect_hands():
 
     cap = cv2.VideoCapture(0)
 
-    SwypNET, word_list = load_model()
+    if model_type == 'Classification':
+        SwypNET, word_list = load_classification_model()
+    elif model_type == 'Sequence':
+        SwypNET = load_sequence_model()
     SwypNET.eval()
 
     while cap.isOpened():
@@ -152,7 +171,11 @@ def detect_hands():
                     cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
             elif prev_ges == GESTURE_WRITE and curr_ges == GESTURE_STOP:
                 # visualise trail plot without saving coz no save path provided
-                display_text += infer_trail(SwypNET, word_list, index_finger_tip_points, colours, image.shape, crop_shape)
+                if model_type == 'Classification':
+                    display_text += infer_classification_trail(SwypNET, word_list, index_finger_tip_points, colours, image.shape, crop_shape)
+                elif model_type == 'Sequence':
+                    display_text += infer_sequence_trail(SwypNET, index_finger_tip_points, colours, image.shape, crop_shape)
+                display_text += " "
                 # reset trail for next word if palm raised
                 index_finger_tip_points = []
             elif curr_ges == GESTURE_DELETE:
@@ -163,9 +186,10 @@ def detect_hands():
         image = cv2.flip(image, 1)
         #crop image to only display keyboard and bottom console area
         image = image[top_left_x:top_left_x+keyboard_height+50, top_left_y:top_left_y+keyboard_width]
+        image[keyboard_height:, :] = np.zeros((50, keyboard_width, 3))
 
         # display text if any - used to display words during data collection
-        cv2.putText(image, display_text, org=(10, image.shape[0] - 10), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
+        cv2.putText(image, display_text, org=(10, image.shape[0] - 15), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
 
         cv2.imshow('Swiper', image)
         if cv2.waitKey(5) & 0xFF == 27:
@@ -174,4 +198,4 @@ def detect_hands():
     cap.release()
 
 if __name__ == '__main__':
-    detect_hands()
+    detect_hands('Sequence')

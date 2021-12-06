@@ -118,5 +118,134 @@ class DecoderRNN(nn.Module):
 
         return outputs
 
+    def inference(self, features):
 
+        # batch size
+        batch_size = features.size(0)
+
+        # init the hidden and cell states to zeros
+        hidden_state = torch.zeros((batch_size, self.hidden_size))
+        cell_state = torch.zeros((batch_size, self.hidden_size))
+
+        # define the output tensor placeholder
+        # print('captions ', captions.shape)
+        outputs = torch.empty((batch_size, self.max_seq_length, self.vocab_size))
+        print(outputs.shape)
+
+        temp_char = ""
+        out = None
+
+        # pass the caption word by word
+        # print(label.shape, label.size(), label.size(0), label_embed.shape)
+        t = 0
+        while t < self.max_seq_length:
+
+            # for the first time step the input is the feature vector
+            if out == None:
+                hidden_state, cell_state = self.lstm_cell(features, (hidden_state, cell_state))
+
+            # for the 2nd+ time step, using teacher forcer
+            else:
+                # print(t, outputs.shape)
+                label = torch.stack([torch.argmax(char) for char in outputs[0]])
+                # print(label, label.shape)
+                label_embed = self.embed(label)
+                label_embed = torch.unsqueeze(label_embed, dim=0)
+                hidden_state, cell_state = self.lstm_cell(label_embed[:, t-1, :], (hidden_state, cell_state))
+
+            # output of the attention mechanism
+            out = self.fc_out(hidden_state)
+            temp_char = data_utils.misc_utils.one_tensor_to_char(out)
+
+            # build the output tensor
+            outputs[:, t, :] = out
+            t+=1
+
+        # print(outputs)
+        return outputs
+
+    def inference_beam(self, features):
+
+        # batch size
+        batch_size = features.size(0)
+
+        # init the hidden and cell states to zeros
+        hidden_state = torch.zeros((batch_size, self.hidden_size))
+        cell_state = torch.zeros((batch_size, self.hidden_size))
+
+        # define the output tensor placeholder
+        # print('captions ', captions.shape)
+        outputs = torch.empty((batch_size, self.max_seq_length, self.vocab_size))
+        # print(outputs.shape)
+
+        temp_char = ""
+        out = None
+
+        beams = []
+        beam_width = 3
+        hidden_state, cell_state = self.lstm_cell(features, (hidden_state, cell_state))
+        first_output = self.fc_out(hidden_state)
+        top_k_probs = torch.topk(first_output, 3)
+        top_k_chars = []
+        
+
+
+        # pass the caption word by word
+        # print(label.shape, label.size(), label.size(0), label_embed.shape)
+        t = 0
+        while temp_char != '<end>' and t < self.max_seq_length:
+
+            # for the first time step the input is the feature vector
+            if out == None:
+                hidden_state, cell_state = self.lstm_cell(features, (hidden_state, cell_state))
+
+            # for the 2nd+ time step, using teacher forcer
+            else:
+                # print(t, outputs.shape)
+                label = torch.stack([torch.argmax(char) for char in outputs[0]])
+                # print(label, label.shape)
+                label_embed = self.embed(label)
+                label_embed = torch.unsqueeze(label_embed, dim=0)
+                hidden_state, cell_state = self.lstm_cell(label_embed[:, t-1, :], (hidden_state, cell_state))
+
+            # output of the attention mechanism
+            out = self.fc_out(hidden_state)
+            temp_char = data_utils.misc_utils.one_tensor_to_char(out)
+
+            # build the output tensor
+            outputs[:, t, :] = out
+            t+=1
+            
+        print(outputs)
+        return outputs
+
+
+if __name__ == '__main__':
+    dataset = ImageToSequenceDataset('about_data')
+    # dataset = ImageToSequenceDataset('eval_data')
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
+
+    ckpt = 'checkpoints/img2seq_no_forcing_3000_0.002223424846306443.pth'
+    model = ImageToSequenceModel(max_seq_length=18, image_embedding_dim=64)
+    model.load_state_dict(torch.load(ckpt, map_location='cpu'))
+    model.train()
+
+    ctr = 0
+
+    for data in dataloader:
+        
+        if ctr == 10:
+            break
+
+        image, label, image_name = data
+        print(image.shape)
+
+        image_embeddings = model.image_encoder(image)
+        print(image_embeddings.shape)
+
+        result = model.decoder.inference(image_embeddings)
+
+        print(data_utils.misc_utils.label_tensor_to_char(label[0]), data_utils.misc_utils.label_tensor_to_char(result[0]))
+        ctr+=1
+        # break
 
