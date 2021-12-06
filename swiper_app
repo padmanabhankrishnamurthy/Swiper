@@ -14,6 +14,8 @@ import torchvision.transforms as T
 import torchvision.models as models
 import torch.nn as nn
 from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
+import models.ImageToSequence.inference as Im2Seq
+import models.ImageClassification.inference as Im2Cls
 
 
 GESTURE_WRITE = 1
@@ -44,18 +46,10 @@ def load_classification_model(words_list='words.txt', checkpoint='checkpoints/cl
     model.load_state_dict(torch.load(checkpoint, map_location='cpu'))
     return model, words
 
-def load_sequence_model(checkpoint='checkpoints/img2seq_470_0.0001769000373315066.pth'):
-    model = ImageToSequenceModel(max_seq_length=20, image_embedding_dim=64)
+def load_sequence_model(checkpoint='checkpoints/img2seq_only_image_decoded_4500_0.0002415632625343278.pth'):
+    model = ImageToSequenceModel(max_seq_length=18, image_embedding_dim=64)
     model.load_state_dict(torch.load(checkpoint, map_location='cpu'))
     return model
-
-def transform_input(img):
-    img = 255 * img
-    img = img.astype(np.uint8)
-    img = np.asarray(img)
-    transforms = T.Compose([T.ToPILImage(), T.ToTensor(),T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-    img = transforms(img)
-    return torch.unsqueeze(img, dim=0)
 
 def gen_trail(index_finger_tip_points, colours, image_shape, crop_shape):
     h,w,c = image_shape
@@ -76,22 +70,6 @@ def gen_trail(index_finger_tip_points, colours, image_shape, crop_shape):
     trail_image = cv2.flip(trail_image, 1)
     trail_image = trail_image[crop_shape[0][0]:crop_shape[0][1], crop_shape[1][0]:crop_shape[1][1]]
     return trail_image
-
-def infer_classification_trail(model, word_list, index_finger_tip_points, colours, image_shape, crop_shape):
-    trail_image = gen_trail(index_finger_tip_points, colours, image_shape, crop_shape)
-    #Transform image to feed into model
-    trail_image = transform_input(trail_image)
-    output = model(trail_image)
-    label_index = torch.argmax(output)
-    return word_list[label_index]
-
-def infer_sequence_trail(model, index_finger_tip_points, colours, image_shape, crop_shape):
-    trail_image = gen_trail(index_finger_tip_points, colours, image_shape, crop_shape)
-    #Transform image to feed into model
-    trail_image = transform_input(trail_image)
-    image_embedding = model.image_encoder(trail_image)
-    output = model.decoder.inference(image_embedding)
-    return output
 
 def distance(a,b):
     return (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y)
@@ -169,15 +147,22 @@ def detect_hands(model_type):
 
                     colour = (colours[i].red*255, colours[i].green*255, colours[i].blue*255)
                     cv2.line(image, index_finger_tip_points[i - 1], index_finger_tip_points[i], colour, thickness=5)
+
             elif prev_ges == GESTURE_WRITE and curr_ges == GESTURE_STOP:
-                # visualise trail plot without saving coz no save path provided
+                trail_image = gen_trail(index_finger_tip_points, colours, image.shape, crop_shape)
+                trail_image = 255 * trail_image
+                trail_image = trail_image.astype(np.uint8)
+                trail_image = np.asarray(trail_image)
                 if model_type == 'Classification':
-                    display_text += infer_classification_trail(SwypNET, word_list, index_finger_tip_points, colours, image.shape, crop_shape)
+                    display_text += Im2Cls.infer(trail_image, SwypNET, words = word_list, transform=True)
                 elif model_type == 'Sequence':
-                    display_text += infer_sequence_trail(SwypNET, index_finger_tip_points, colours, image.shape, crop_shape)
+                    temp_text = Im2Seq.infer(trail_image, SwypNET, transform=True)
+                    temp_text = [x for x in temp_text if '<' not in x]
+                    display_text += "".join(temp_text)
                 display_text += " "
                 # reset trail for next word if palm raised
                 index_finger_tip_points = []
+
             elif curr_ges == GESTURE_DELETE:
                 display_text = ""
         
@@ -198,4 +183,4 @@ def detect_hands(model_type):
     cap.release()
 
 if __name__ == '__main__':
-    detect_hands('Sequence')
+    detect_hands('Classification')

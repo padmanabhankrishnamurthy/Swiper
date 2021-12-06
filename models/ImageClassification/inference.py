@@ -1,4 +1,4 @@
-from ImageClassificationModel import ImageClassificationDataset
+from models.ImageClassification.ImageClassificationModel import ImageClassificationDataset
 from data_utils.ImageClassification import ImageClassificationDataset
 from data_utils.misc_utils import get_words
 
@@ -18,11 +18,13 @@ def load_model(num_classes, checkpoint):
     model.load_state_dict(torch.load(checkpoint, map_location='cpu'))
     return model
 
-def infer(image, model, words=None, words_file=None):
+def infer(image, model, words=None, words_file=None, transform = False):
 
     # transform image if image is not a torch tensor
     if isinstance(image, str):
         image = np.asarray(Image.open(image))
+    
+    if transform:
         transforms = T.Compose([T.ToPILImage(), T.ToTensor(),
                                 T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         image = transforms(image)

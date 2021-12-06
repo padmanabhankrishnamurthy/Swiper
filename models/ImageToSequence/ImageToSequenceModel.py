@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 
-from BeamSearchDecoder import BeamDecoder
-
 class ImageToSequenceModel(nn.Module):
     def __init__(self, max_seq_length, image_embedding_dim=512, device='cpu', beam=False):
         '''

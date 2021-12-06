@@ -1,4 +1,4 @@
-from ImageToSequenceModel import ImageToSequenceModel
+from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
 from data_utils.ImageToSequence import ImageToSequenceDataset
 from data_utils.misc_utils import label_tensor_to_char, clean_decoder_output
 
@@ -11,11 +11,13 @@ import numpy as np
 from PIL import Image
 import fastwer
 
-def infer(image, model):
+def infer(image, model, transform = False):
 
     # transform image if image is not a torch tensor
     if isinstance(image, str):
         image = np.asarray(Image.open(image))
+    
+    if transform:
         transforms = T.Compose([T.ToPILImage(), T.ToTensor(),
                                 T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         image = transforms(image)
