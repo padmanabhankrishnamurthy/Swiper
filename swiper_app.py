@@ -1,18 +1,12 @@
-import enum
 import cv2
 import mediapipe as mp
 import numpy as np
-import matplotlib.pyplot as plt
-import time
-import os
-from PIL import Image
-from enum import Enum
 from colour import Color
-from numpy.lib.function_base import disp
+
 import torch
-import torchvision.transforms as T
 import torchvision.models as models
 import torch.nn as nn
+
 from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
 import models.ImageToSequence.inference as Im2Seq
 import models.ImageClassification.inference as Im2Cls
@@ -183,4 +177,6 @@ def detect_hands(model_type):
     cap.release()
 
 if __name__ == '__main__':
-    detect_hands('Classification')
+    model_type = 'Classification'
+    model_type = 'Sequence'
+    detect_hands(model_type=model_type)

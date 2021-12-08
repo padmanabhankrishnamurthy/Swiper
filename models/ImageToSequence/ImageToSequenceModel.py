@@ -4,7 +4,7 @@ import torchvision.models as models
 from torch.utils.data import DataLoader
 
 from data_utils.ImageToSequence import ImageToSequenceDataset
-from BeamSearchDecoder import BeamDecoder
+# from BeamSearchDecoder import BeamDecoder
 from data_utils.misc_utils import label_tensor_to_char
 
 class ImageToSequenceModel(nn.Module):

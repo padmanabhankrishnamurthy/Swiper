@@ -4,9 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
-from PIL import Image
 
 from colour import Color
+
+from swiper_app import load_sequence_model, load_classification_model
+from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
+import models.ImageClassification.inference as ImgCls
+import models.ImageToSequence.inference as Img2Seq
 
 
 # media pipe objects
@@ -38,7 +42,7 @@ def palm_open(landmarks):
 
     return middle_open
 
-def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=None, path=None, inference=False):
+def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=None, path=None, model=None, word_list=None):
     h,w,c = image_shape
     trail_image = np.zeros((h, w, c))
 
@@ -60,6 +64,20 @@ def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=N
     plt.imshow(trail_image)
     plt.show()
 
+    if model:
+        display_text = ""
+        trail_image = 255 * trail_image
+        trail_image = trail_image.astype(np.uint8)
+        trail_image = np.asarray(trail_image)
+        if not isinstance(model, ImageToSequenceModel):
+            display_text += ImgCls.infer(trail_image, model, words=word_list, transform=True)
+        else:
+            temp_text = Img2Seq.infer(trail_image, model, transform=True)
+            temp_text = [x for x in temp_text if '<' not in x]
+            display_text += "".join(temp_text)
+            print(display_text)
+        return display_text
+
     # save image
     if name:
         print(name)
@@ -75,15 +93,17 @@ def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=N
         cv2.imwrite(os.path.join(path, filename), trail_image)
 
 
-def detect_hands(word_list=None, save_path=None, inference=False):
+def detect_hands(save_path=None, model=None, word_list=None):
     index_finger_tip_points = []
     word_list_index = 0
     samples_captured = 0
     samples_per_word = 5
 
     cap = cv2.VideoCapture(0)
+
+    display_text = word_list[word_list_index] if word_list else None
     while cap.isOpened():
-        display_text = word_list[word_list_index] if word_list else None
+        # display_text = word_list[word_list_index] if word_list else None
         success, image = cap.read()
         h, w, c = image.shape
 
@@ -132,7 +152,7 @@ def detect_hands(word_list=None, save_path=None, inference=False):
             if palm_open(results.multi_hand_landmarks):
                 # create trail on blank image and save
                 if save_path:
-                    save_trail(index_finger_tip_points, colours, image.shape, crop_shape, display_text, save_path)
+                    display_text = save_trail(index_finger_tip_points, colours, image.shape, crop_shape, display_text, save_path, model, word_list)
                     samples_captured+=1
                     if samples_captured == samples_per_word:
                         word_list_index+=1 # display next word
@@ -140,18 +160,13 @@ def detect_hands(word_list=None, save_path=None, inference=False):
 
                 # visualise trail plot without saving coz no save path provided
                 else:
-                    save_trail(index_finger_tip_points, colours, image.shape, crop_shape, inference=inference)
+                    display_text = save_trail(index_finger_tip_points, colours, image.shape, crop_shape, model=model, word_list=word_list)
 
                 # pause so that save_trail isn't called multiple times
                 time.sleep(1)
                 # reset trail for next word if palm raised
                 index_finger_tip_points = []
 
-        # elif results.multi_hand_landmarks and len(results.multi_hand_landmarks)!=1:
-        #     print(len(results.multi_hand_landmarks))
-        #
-        # else:
-        #     print(results.multi_hand_landmarks)
 
         # Flip the image horizontally for a selfie-view display.
         image = cv2.flip(image, 1)
@@ -159,7 +174,7 @@ def detect_hands(word_list=None, save_path=None, inference=False):
         image = image[top_left_x:top_left_x+keyboard_height+50, top_left_y:top_left_y+keyboard_width]
 
         # display text if any - used to display words during data collection
-        if word_list:
+        if display_text:
             cv2.putText(image, display_text, org=(10, image.shape[0] - 10), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2, color=[0,0,255])
 
         cv2.imshow('Swiper', image)
@@ -169,4 +184,14 @@ def detect_hands(word_list=None, save_path=None, inference=False):
     cap.release()
 
 if __name__ == '__main__':
-    detect_hands()
+    model_type = 'Classification'
+    # model_type = 'Sequence'
+    word_list = None
+
+    if model_type == 'Classification':
+        SwypNET, word_list = load_classification_model()
+    elif model_type == 'Sequence':
+        SwypNET = load_sequence_model()
+    SwypNET.eval()
+
+    detect_hands(model=SwypNET, word_list=word_list)
