@@ -25,7 +25,7 @@ def train(model, train_dataset, batch_size=4, save_path=None, save_name=None):
         pbar = tqdm(train_loader)
 
         for data in pbar:
-            images, labels = data
+            images, labels, image_names = data
             labels_class_indices = torch.argmax(labels, dim=2)
             labels_class_indices = torch.squeeze(labels_class_indices, dim=1)
 
