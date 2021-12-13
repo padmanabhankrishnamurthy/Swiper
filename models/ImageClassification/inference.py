@@ -1,6 +1,6 @@
 from models.ImageClassification.ImageClassificationModel import ImageClassificationDataset
 from data_utils.ImageClassification import ImageClassificationDataset
-from data_utils.misc_utils import get_words
+from data_utils.misc_utils import get_words, norm_tensor_to_img
 
 import torch
 import torch.nn as nn
@@ -11,6 +11,7 @@ import torchvision.models as models
 import os
 import numpy as np
 from PIL import Image
+import time
 
 def load_model(num_classes, checkpoint):
     model = models.mobilenet_v2(pretrained=True)
@@ -33,6 +34,7 @@ def infer(image, model, words=None, words_file=None, transform = False):
     if words_file:
         words = get_words(words_file)
 
+    norm_tensor_to_img(image[0])
     model.eval()
     output = model(image)
     label = words[torch.argmax(output)]
@@ -71,5 +73,7 @@ if __name__ == '__main__':
     # evaluate(eval_set, model)
 
     # run single image inference
-    result = infer(os.path.join(image_dir, 'hey_2.jpg'), model, words_file=words_list)
+    start = time.time()
+    result = infer(os.path.join(image_dir, 'hey_2.jpg'), model, words_file=words_list, transform=True)
+    print(time.time()-start)
     print(result)

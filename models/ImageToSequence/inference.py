@@ -1,6 +1,6 @@
 from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
 from data_utils.ImageToSequence import ImageToSequenceDataset
-from data_utils.misc_utils import label_tensor_to_char, clean_decoder_output
+from data_utils.misc_utils import label_tensor_to_char, clean_decoder_output, norm_tensor_to_img
 
 import torch
 from torch.utils.data import DataLoader
@@ -12,7 +12,6 @@ from PIL import Image
 import fastwer
 
 def infer(image, model, transform = False):
-
     # transform image if image is not a torch tensor
     if isinstance(image, str):
         image = np.asarray(Image.open(image))
@@ -22,6 +21,8 @@ def infer(image, model, transform = False):
                                 T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         image = transforms(image)
         image = torch.unsqueeze(image, dim=0)
+
+    norm_tensor_to_img(image[0])
 
     image_embeddings = model.image_encoder(image)
     decoder_output = model.decoder(image_embeddings)
@@ -55,9 +56,9 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(ckpt, map_location='cpu'))
 
     # run evaluation
-    # evaluate(eval_set, model)
+    evaluate(eval_set, model)
 
     # run single image inference
-    result = infer(os.path.join(image_dir, 'hey_2.jpg'), model)
-    print(result)
-    print(clean_decoder_output(result))
+    # result = infer(os.path.join(image_dir, 'hey_2.jpg'), model, transform=True)
+    # print(result)
+    # print(clean_decoder_output(result))

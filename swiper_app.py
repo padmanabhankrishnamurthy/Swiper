@@ -11,6 +11,9 @@ from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
 import models.ImageToSequence.inference as Im2Seq
 import models.ImageClassification.inference as Im2Cls
 
+torch.manual_seed(7)
+np.random.seed(7)
+
 
 GESTURE_WRITE = 1
 GESTURE_STOP = 2
@@ -148,7 +151,8 @@ def detect_hands(model_type):
                 trail_image = trail_image.astype(np.uint8)
                 trail_image = np.asarray(trail_image)
                 if model_type == 'Classification':
-                    display_text += Im2Cls.infer(trail_image, SwypNET, words = word_list, transform=True)
+                    word = Im2Cls.infer(trail_image, SwypNET, words = word_list, transform=True)
+                    display_text+=word
                 elif model_type == 'Sequence':
                     temp_text = Im2Seq.infer(trail_image, SwypNET, transform=True)
                     temp_text = [x for x in temp_text if '<' not in x]
@@ -178,5 +182,5 @@ def detect_hands(model_type):
 
 if __name__ == '__main__':
     model_type = 'Classification'
-    model_type = 'Sequence'
+    # model_type = 'Sequence'
     detect_hands(model_type=model_type)

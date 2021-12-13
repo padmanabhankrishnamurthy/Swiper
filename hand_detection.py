@@ -102,6 +102,8 @@ def detect_hands(save_path=None, model=None, word_list=None):
     cap = cv2.VideoCapture(0)
 
     display_text = word_list[word_list_index] if word_list else None
+    display_text = "" if model else None
+    display_text = "ton"
     while cap.isOpened():
         # display_text = word_list[word_list_index] if word_list else None
         success, image = cap.read()
@@ -160,7 +162,7 @@ def detect_hands(save_path=None, model=None, word_list=None):
 
                 # visualise trail plot without saving coz no save path provided
                 else:
-                    display_text = save_trail(index_finger_tip_points, colours, image.shape, crop_shape, model=model, word_list=word_list)
+                    display_text+= save_trail(index_finger_tip_points, colours, image.shape, crop_shape, model=model, word_list=word_list) + " "
 
                 # pause so that save_trail isn't called multiple times
                 time.sleep(1)
@@ -172,6 +174,7 @@ def detect_hands(save_path=None, model=None, word_list=None):
         image = cv2.flip(image, 1)
         #crop image to only display keyboard and bottom console area
         image = image[top_left_x:top_left_x+keyboard_height+50, top_left_y:top_left_y+keyboard_width]
+        image[keyboard_height:, :] = np.zeros((50, keyboard_width, 3))
 
         # display text if any - used to display words during data collection
         if display_text:
@@ -185,7 +188,7 @@ def detect_hands(save_path=None, model=None, word_list=None):
 
 if __name__ == '__main__':
     model_type = 'Classification'
-    # model_type = 'Sequence'
+    model_type = 'Sequence'
     word_list = None
 
     if model_type == 'Classification':
