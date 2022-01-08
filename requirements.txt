@@ -1,2 +1,11 @@
-pyenchant
-colour
+colour==0.1.5
+fastwer==0.1.3
+matplotlib==3.3.3
+mediapipe==0.8.9
+numpy==1.19.4
+opencv_contrib_python==4.5.4.58
+Pillow==9.0.0
+pyenchant==3.2.2
+torch==1.9.0
+torchvision==0.8.2
+tqdm==4.62.3
