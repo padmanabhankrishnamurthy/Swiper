@@ -3,4 +3,6 @@
 ### Created by Padmanabhan Krishnamurthy and Amrutavarsh Kinagi
 
 ### Usage
-Set `model_type` in    `Line 190` of `hand_detection.py` and run `python3 hand_detection.py`
+- Install requirements using `pip install -r requirements.txt`
+- Set `model_type` in    `Line 190` of `hand_detection.py`
+- Run `python3 hand_detection.py`
