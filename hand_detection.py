@@ -6,6 +6,7 @@ import time
 import os
 
 from colour import Color
+import argparse
 
 from swiper_app import load_sequence_model, load_classification_model
 from models.ImageToSequence.ImageToSequenceModel import ImageToSequenceModel
@@ -61,8 +62,8 @@ def save_trail(index_finger_tip_points, colours, image_shape, crop_shape, name=N
     trail_image = cv2.flip(trail_image, 1)
     trail_image = trail_image[crop_shape[0][0]:crop_shape[0][1], crop_shape[1][0]:crop_shape[1][1]]
 
-    plt.imshow(trail_image)
-    plt.show()
+    # plt.imshow(trail_image)
+    # plt.show()
 
     if model:
         display_text = ""
@@ -101,9 +102,17 @@ def detect_hands(save_path=None, model=None, word_list=None):
 
     cap = cv2.VideoCapture(0)
 
-    display_text = word_list[word_list_index] if word_list else None
-    display_text = "" if model else None
-    display_text = "ton"
+    display_text = ""
+
+    if word_list:
+        display_text = word_list[word_list_index]
+
+    if model:
+        display_text = ""
+
+    # display_text = word_list[word_list_index] if word_list else None
+    # display_text = "" if model else None
+
     while cap.isOpened():
         # display_text = word_list[word_list_index] if word_list else None
         success, image = cap.read()
@@ -187,13 +196,16 @@ def detect_hands(save_path=None, model=None, word_list=None):
     cap.release()
 
 if __name__ == '__main__':
-    model_type = 'Classification'
-    model_type = 'Sequence'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--type', choices=['classification', 'sequence'], default='classification')
+    args = parser.parse_args()
+
+    model_type = args.type
     word_list = None
 
-    if model_type == 'Classification':
+    if model_type == 'classification':
         SwypNET, word_list = load_classification_model()
-    elif model_type == 'Sequence':
+    elif model_type == 'sequence':
         SwypNET = load_sequence_model()
     SwypNET.eval()
 

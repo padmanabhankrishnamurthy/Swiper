@@ -34,7 +34,7 @@ def infer(image, model, words=None, words_file=None, transform = False):
     if words_file:
         words = get_words(words_file)
 
-    norm_tensor_to_img(image[0])
+    # norm_tensor_to_img(image[0])
     model.eval()
     output = model(image)
     label = words[torch.argmax(output)]
